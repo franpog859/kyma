@@ -17,3 +17,8 @@ ci-compass:
 ci-skr:
 	npm install
 	npm run test-skr
+
+.PHONY: ci-application-connectivity-2
+ci-application-connectivity-2:
+	npm install
+	npm run test-application-connectivity-2

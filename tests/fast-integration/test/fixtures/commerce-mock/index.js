@@ -56,9 +56,17 @@ const lastorderFunctionYaml = fs.readFileSync(
   }
 );
 
+const lastorderCentralApplicationGatewayFunctionYaml = fs.readFileSync(
+    path.join(__dirname, "..", "..", "..", "application-connectivity-2", "./lastorder-function.yaml"),
+    {
+      encoding: "utf8",
+    }
+);
+
 const commerceObjs = k8s.loadAllYaml(commerceMockYaml);
 const applicationObjs = k8s.loadAllYaml(applicationMockYaml);
 const lastorderObjs = k8s.loadAllYaml(lastorderFunctionYaml);
+const lastorderCentralApplicationGatewayObjs = k8s.loadAllYaml(lastorderCentralApplicationGatewayFunctionYaml);
 
 function namespaceObj(name) {
   return {
@@ -348,10 +356,10 @@ async function ensureCommerceMockWithCompassTestFixture(client, appName, scenari
   return mockHost;
 }
 
-async function ensureCommerceMockLocalTestFixture(mockNamespace, targetNamespace) {
+async function ensureCommerceMockLocalTestFixture(mockNamespace, targetNamespace, withCentralApplicationGateway=false) {
   
   await k8sApply(applicationObjs);
-  const mockHost = await provisionCommerceMockResources("commerce", mockNamespace, targetNamespace);
+  const mockHost = await provisionCommerceMockResources("commerce", mockNamespace, targetNamespace, withCentralApplicationGateway);
   await retryPromise(() => connectMockLocal(mockHost, targetNamespace), 10, 3000);
   await retryPromise(() => registerAllApis(mockHost), 10, 3000);
 
@@ -407,10 +415,14 @@ async function ensureCommerceMockLocalTestFixture(mockNamespace, targetNamespace
   return mockHost;
 }
 
-async function provisionCommerceMockResources(appName, mockNamespace, targetNamespace) {
+async function provisionCommerceMockResources(appName, mockNamespace, targetNamespace, withCentralApplicationGateway=false) {
   await k8sApply([namespaceObj(mockNamespace), namespaceObj(targetNamespace)]);
   await k8sApply(commerceObjs);
-  await k8sApply(lastorderObjs, targetNamespace, true);
+  if (withCentralApplicationGateway) {
+    await k8sApply(lastorderCentralApplicationGatewayObjs, targetNamespace, true);
+  } else {
+    await k8sApply(lastorderObjs, targetNamespace, true);
+  }
   await k8sApply([
     eventingKnativeTrigger(
       appName, 
