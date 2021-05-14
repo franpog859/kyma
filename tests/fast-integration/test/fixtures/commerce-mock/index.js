@@ -57,7 +57,14 @@ const lastorderFunctionYaml = fs.readFileSync(
 );
 
 const lastorderCentralApplicationGatewayFunctionYaml = fs.readFileSync(
-    path.join(__dirname, "..", "..", "..", "application-connectivity-2", "./lastorder-function.yaml"),
+    path.join(__dirname, "..", "..", "..", "application-connectivity-2-test", "./lastorder-function.yaml"),
+    {
+      encoding: "utf8",
+    }
+);
+
+const lastorderCentralApplicationGatewayAndCompassFunctionYaml = fs.readFileSync(
+    path.join(__dirname, "..", "..", "..", "application-connectivity-2-compass-test", "./lastorder-function.yaml"),
     {
       encoding: "utf8",
     }
@@ -67,6 +74,7 @@ const commerceObjs = k8s.loadAllYaml(commerceMockYaml);
 const applicationObjs = k8s.loadAllYaml(applicationMockYaml);
 const lastorderObjs = k8s.loadAllYaml(lastorderFunctionYaml);
 const lastorderCentralApplicationGatewayObjs = k8s.loadAllYaml(lastorderCentralApplicationGatewayFunctionYaml);
+const lastorderCentralApplicationGatewayAndCompassObjs = k8s.loadAllYaml(lastorderCentralApplicationGatewayAndCompassFunctionYaml);
 
 function namespaceObj(name) {
   return {
@@ -313,8 +321,12 @@ async function connectCommerceMock(mockHost, tokenData) {
   }
 }
 
-async function ensureCommerceMockWithCompassTestFixture(client, appName, scenarioName, mockNamespace, targetNamespace) {
-  const mockHost = await provisionCommerceMockResources(`mp-${appName}`, mockNamespace, targetNamespace);
+async function ensureCommerceMockWithCompassTestFixture(client, appName, scenarioName, mockNamespace, targetNamespace, withCentralApplicationGateway=false) {
+  const mockHost = await provisionCommerceMockResources(
+      `mp-${appName}`,
+      mockNamespace,
+      targetNamespace,
+      withCentralApplicationGateway ? lastorderCentralApplicationGatewayAndCompassObjs : lastorderObjs);
   await retryPromise(() => connectMockCompass(client, appName, scenarioName, mockHost, targetNamespace), 10, 3000);
   await retryPromise(() => registerAllApis(mockHost), 10, 3000);
   await waitForDeployment(`mp-${appName}-connectivity-validator`, "kyma-integration");
@@ -359,7 +371,11 @@ async function ensureCommerceMockWithCompassTestFixture(client, appName, scenari
 async function ensureCommerceMockLocalTestFixture(mockNamespace, targetNamespace, withCentralApplicationGateway=false) {
   
   await k8sApply(applicationObjs);
-  const mockHost = await provisionCommerceMockResources("commerce", mockNamespace, targetNamespace, withCentralApplicationGateway);
+  const mockHost = await provisionCommerceMockResources(
+      "commerce",
+      mockNamespace,
+      targetNamespace,
+      withCentralApplicationGateway ? lastorderCentralApplicationGatewayObjs : lastorderObjs);
   await retryPromise(() => connectMockLocal(mockHost, targetNamespace), 10, 3000);
   await retryPromise(() => registerAllApis(mockHost), 10, 3000);
 
@@ -415,14 +431,10 @@ async function ensureCommerceMockLocalTestFixture(mockNamespace, targetNamespace
   return mockHost;
 }
 
-async function provisionCommerceMockResources(appName, mockNamespace, targetNamespace, withCentralApplicationGateway=false) {
+async function provisionCommerceMockResources(appName, mockNamespace, targetNamespace, functionObjs=lastorderObjs) {
   await k8sApply([namespaceObj(mockNamespace), namespaceObj(targetNamespace)]);
   await k8sApply(commerceObjs);
-  if (withCentralApplicationGateway) {
-    await k8sApply(lastorderCentralApplicationGatewayObjs, targetNamespace, true);
-  } else {
-    await k8sApply(lastorderObjs, targetNamespace, true);
-  }
+  await k8sApply(functionObjs, targetNamespace, true);
   await k8sApply([
     eventingKnativeTrigger(
       appName, 
