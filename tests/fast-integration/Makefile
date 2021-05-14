@@ -27,3 +27,15 @@ ci-application-connectivity-2:
 ci-application-connectivity-2-compass:
 	npm install
 	npm run test-application-connectivity-2-compass
+
+.PHONY: ci-pre-upgrade
+ci-pre-upgrade:
+	npm install
+	npm run upgrade-test-prep
+	npm run upgrade-test-tests
+
+.PHONY: ci-post-upgrade
+ci-post-upgrade:
+	npm install
+	npm run upgrade-test-tests
+	npm run upgrade-test-cleanup

@@ -1,11 +1,36 @@
 package env
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
 )
+
+const (
+	BACKEND = "BACKEND"
+
+	BACKEND_VALUE_BEB  = "BEB"
+	BACKEND_VALUE_NATS = "NATS"
+)
+
+// Backend returns the selected backend based on the environment variable
+// "BACKEND". "NATS" is the default value in case of an empty variable.
+func Backend() (string, error) {
+	backend := strings.ToUpper(os.Getenv(BACKEND))
+
+	switch backend {
+	case BACKEND_VALUE_BEB:
+		return BACKEND_VALUE_BEB, nil
+	case BACKEND_VALUE_NATS, "":
+		return BACKEND_VALUE_NATS, nil
+	default:
+		return "", fmt.Errorf("invalid BACKEND set: %v", backend)
+	}
+}
 
 // Config represents the environment config for the Eventing Controller.
 type Config struct {
@@ -20,6 +45,14 @@ type Config struct {
 	WebhookClientID          string        `envconfig:"WEBHOOK_CLIENT_ID" required:"true"`
 	WebhookClientSecret      string        `envconfig:"WEBHOOK_CLIENT_SECRET" required:"true"`
 	WebhookTokenEndpoint     string        `envconfig:"WEBHOOK_TOKEN_ENDPOINT" required:"true"`
+
+	// Default protocol setting for BEB
+	ExemptHandshake bool   `envconfig:"EXEMPT_HANDSHAKE" default:"true"`
+	Qos             string `envconfig:"QOS" default:"AT_LEAST_ONCE"`
+	ContentMode     string `envconfig:"CONTENT_MODE" default:""`
+
+	// Default namespace for BEB
+	BEBNamespace string `envconfig:"BEB_NAMESPACE" required:"true"`
 
 	// Domain holds the Kyma domain
 	Domain string `envconfig:"DOMAIN" required:"true"`
